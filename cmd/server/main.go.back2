@@ -1,0 +1,121 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"math/rand"
+	"net"
+	"sync"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	pb "chat-app/proto/pb"
+)
+
+type server struct {
+	pb.UnimplementedChatServiceServer
+	mu        sync.Mutex
+	chatRooms map[string][]*pb.User
+	streams   map[string][]pb.ChatService_StreamMessagesServer
+}
+
+func NewServer() *server {
+	return &server{
+		chatRooms: make(map[string][]*pb.User),
+		streams:   make(map[string][]pb.ChatService_StreamMessagesServer),
+	}
+}
+
+func generateID() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("%d", rand.Intn(1000000))
+}
+
+func (s *server) Join(ctx context.Context, chatRoom *pb.ChatRoom) (*pb.User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user := &pb.User{
+		Id:   generateID(),
+		Name: fmt.Sprintf("User-%s", generateID()),
+	}
+	s.chatRooms[chatRoom.Id] = append(s.chatRooms[chatRoom.Id], user)
+
+	log.Printf("User %s joined chat room %s", user.Id, chatRoom.Id)
+	return user, nil
+}
+
+func (s *server) SendMessage(ctx context.Context, msg *pb.Message) (*pb.Message, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	chatRoomID := msg.ChatRoomId
+	if streams, ok := s.streams[chatRoomID]; ok {
+		for _, stream := range streams {
+			if err := stream.Send(msg); err != nil {
+				log.Printf("Error sending message to stream: %v", err)
+			}
+		}
+	}
+
+	log.Printf("Message from user %s in chat room %s: %s", msg.UserId, chatRoomID, msg.Content)
+	return msg, nil
+}
+
+func remove(slice []int, s int) []int {
+    return append(slice[:s], slice[s+1:]...)
+}
+func (s *server) StreamMessages(chatRoom *pb.ChatRoom, stream pb.ChatService_StreamMessagesServer) error {
+	s.mu.Lock()
+	s.streams[chatRoom.Id] = append(s.streams[chatRoom.Id], stream)
+	s.mu.Unlock()
+
+	<-stream.Context().Done()
+
+	s.mu.Lock()
+
+	// for k, v := range s.streams {
+    //     fmt.Println("Key: ", k, "value is: ", v)
+	// 	for i, v2 := range v {
+	// 		if v2 == stream {
+    //             fmt.Println("Value: ", &v2)
+    //             s.streams[chatRoom.Id] = remove(v, i)
+    //             break
+    //         }
+	// 		fmt.Println("Value: ", &v2)
+	// 	}
+    // }
+
+	for i, s2 := range s.streams[chatRoom.Id] {
+		if s2 == stream {
+			fmt.Println("I: ", i)
+			//delete(s.streams, chatRoom.Id)
+			//fmt.Println("S: ", )
+			//s.streams[chatRoom.Id] = append(s.streams[chatRoom.Id][:i], s.streams[chatRoom.Id][i+1:]...)
+			break
+		}
+	}
+	s.mu.Unlock()
+
+	log.Printf("User left chat room %s", chatRoom.Id)
+	return nil
+}
+
+func main() {
+	listener, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	pb.RegisterChatServiceServer(s, NewServer())
+	reflection.Register(s)
+
+	log.Println("gRPC server is running on port 50051")
+	if err := s.Serve(listener); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}

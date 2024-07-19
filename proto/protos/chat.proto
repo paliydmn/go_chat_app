@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package chat;
+option go_package = "../pb";
+
+// Message representing a user
+message User {
+  string id = 1;      // Unique identifier for the user
+  string name = 2;    // Name of the user
+}
+
+// Message representing a chat message
+message Message {
+  string id = 1;          // Unique identifier for the message
+  string userId = 2;      // ID of the user who sent the message
+  string content = 3;     // Content of the message
+  int64 timestamp = 4;    // Timestamp of when the message was sent
+  string chatRoomId = 5;  // ID of the chat room the message belongs to
+}
+
+// Message representing a chat room
+message ChatRoom {
+  string id = 1;      // Unique identifier for the chat room
+  string name = 2;    // Name of the chat room
+  User user = 3;      // User
+}
+
+message JoinRequest {
+  string chatRoomId = 1;
+  User user = 2;
+}
+
+// Service definition for chat
+service ChatService {
+  // Join a chat room
+  rpc Join(JoinRequest) returns (User);
+
+  // Send a message
+  rpc SendMessage(Message) returns (Message);
+
+  // Stream messages from a chat room
+  rpc StreamMessages(ChatRoom) returns (stream Message);
+}
