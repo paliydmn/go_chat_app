@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"sync"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -29,12 +27,6 @@ func NewServer() *server {
 		chatRooms: make(map[string][]*pb.User),
 		streams:   make(map[string][]pb.ChatService_StreamMessagesServer),
 	}
-}
-
-// generateID generates a random ID for users and messages.
-func generateID() string {
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%d", rand.Intn(1000000))
 }
 
 // Join allows a user to join a chat room.

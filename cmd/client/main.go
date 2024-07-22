@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"golang.org/x/exp/rand"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -74,6 +75,12 @@ func main() {
 	joinButton := widget.NewButton("Join Chat Room", func() {
 		username = userEntry.Text
 		chatRoom = chatRoomEntry.Text
+			// Generate a unique chat room ID if not provided by the client
+		if chatRoom == "" {
+			chatRoom = generateID()
+			chatRoomEntry.SetText(chatRoom)
+		}
+
 		joinChatRoom(username, chatRoom)
 		go streamMessages(messageList)
 		
@@ -139,4 +146,11 @@ func streamMessages(messageList *widget.List) {
 		messages = append(messages, fmt.Sprintf("%s: %s", in.UserId, in.Content))
 		messageList.Refresh()
 	}
+}
+
+
+// generateID generates a random ID for users and messages.
+func generateID() string {
+	rand.Seed(uint64(time.Now().UnixNano()))
+	return fmt.Sprintf("%d", rand.Intn(1000000))
 }
