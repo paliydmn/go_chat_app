@@ -83,13 +83,7 @@ func (s *server) SendMessage(ctx context.Context, msg *pb.Message) (*pb.Message,
 func (s *server) StreamMessages(chatRoom *pb.ChatRoom, stream pb.ChatService_StreamMessagesServer) error {
 	s.mu.Lock()
 
-	// Check if the stream is already in the list
-	for _, existingStream := range s.streams[chatRoom.Id] {
-		if existingStream == stream {
-			s.mu.Unlock()
-			return nil
-		}
-	}
+	//#ToDo Check if the stream is already in the list
 
 	// Add stream to the chat room's streams slice
 	s.streams[chatRoom.Id] = append(s.streams[chatRoom.Id], stream)
@@ -110,30 +104,6 @@ func (s *server) StreamMessages(chatRoom *pb.ChatRoom, stream pb.ChatService_Str
 	log.Printf("User left chat room %s", chatRoom.Id)
 	return nil
 }
-
-
-// func (s *server) StreamMessages(chatRoom *pb.ChatRoom, stream pb.ChatService_StreamMessagesServer) error {
-// 	s.mu.Lock()
-// 	// Add the stream to the list of streams for the specified chat room
-// 	s.streams[chatRoom.Id] = append(s.streams[chatRoom.Id], stream)
-// 	s.mu.Unlock()
-
-// 	<-stream.Context().Done() // Wait until the stream is done
-
-// 	s.mu.Lock()
-// 	// Remove the stream from the list of streams for the specified chat room
-// 	for _, s := range s.streams[chatRoom.Id] {
-// 		if s == stream {
-// 			// Commented line shows how to remove the stream from the slice
-// 			// s.streams[chatRoom.Id] = append(s.streams[chatRoom.Id][:i], s.streams[chatRoom.Id][i+1:]...)
-// 			break
-// 		}
-// 	}
-// 	s.mu.Unlock()
-
-// 	log.Printf("User left chat room %s", chatRoom.Id)
-// 	return nil
-// }
 
 func main() {
 	// Create a listener on TCP port 50051
